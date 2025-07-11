@@ -11,9 +11,12 @@ namespace SqlClient::Client {
 class Client {
 
 public:
+    boost::asio::io_context io_context;
+    
     Client();
     ~Client();
 
+    std::unique_ptr<tcp::socket> connect(ConnectionInfo* connection_info);
     static ConnectionInfo parse_connection_string(const std::string& input);
 };
 

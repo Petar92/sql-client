@@ -9,6 +9,7 @@ bool is_connection_established = false;
 ConnectionInfo connection_info;
 Client client;
 std::string query;
+std::unique_ptr<tcp::socket> sql_socket;
 
 int main() {
     std::string user_input;
@@ -29,6 +30,10 @@ int main() {
         if (!is_connection_established) {
             connection_info = Client::parse_connection_string(user_input);
             if (connection_info.is_valid_connection) {
+                sql_socket = client.connect(&connection_info);
+                if (sql_socket == nullptr) {
+                    break;
+                }
                 is_connection_established = true;
                 std::cout << "Connection established to " << connection_info.host << ":" << connection_info.port << std::endl;
             }
@@ -36,10 +41,26 @@ int main() {
         else {
             try {
                 query = QueryParser::parse(user_input);
-                // TODO: send query to server using boost asio
+
+                std::array<char, 128> buf;
+                boost::system::error_code error;
+        
+                boost::asio::write(*sql_socket, boost::asio::buffer(query));
+
+                size_t len = sql_socket->read_some(boost::asio::buffer(buf), error);
+        
+                if (error) {
+                    is_connection_established = false;
+                    if (error != boost::asio::error::eof)
+                        std::cerr << "Error reading from the server: " << error << std::endl;
+                    break;
+                }
+        
+                std::cout.write(buf.data(), len);
+                std::cout << "\n";
             }
             catch (const std::exception& e) {
-                std::cerr << "Failed to parse query: " << e.what() << std::endl;
+                std::cerr << "Error processing the query: " << e.what() << std::endl;
             }
         }
     }

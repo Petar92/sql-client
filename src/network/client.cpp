@@ -6,10 +6,25 @@ using boost::asio::ip::tcp;
 
 namespace SqlClient::Client {
 
-Client::Client() {
+boost::asio::io_context io_context;
 
-}
+Client::Client() {}
 Client::~Client() = default;
+
+std::unique_ptr<tcp::socket> Client::connect(ConnectionInfo* connection_info) {
+    try {
+        tcp::resolver resolver(io_context);
+        tcp::resolver::results_type endpoints = resolver.resolve(connection_info->host, connection_info->port);
+        auto socket = std::make_unique<tcp::socket>(io_context);
+        boost::asio::connect(*socket, endpoints);
+    
+        return socket;
+    }
+    catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return nullptr;
+    }
+}
 
 /**
  * @brief Parses the initial command which is expected to be
